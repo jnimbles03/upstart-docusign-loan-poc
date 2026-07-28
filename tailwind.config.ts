@@ -86,6 +86,10 @@ const config: Config = {
           "60%": { transform: "scale(1.12)" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        "sheet-up": {
+          from: { transform: "translateY(100%)" },
+          to: { transform: "translateY(0)" },
+        },
         "spin-slow": {
           to: { transform: "rotate(360deg)" },
         },
@@ -98,6 +102,7 @@ const config: Config = {
         "grow-x": "grow-x 0.5s cubic-bezier(0.16,1,0.3,1) both",
         "pulse-ring": "pulse-ring 1.6s ease-out infinite",
         "pop-check": "pop-check 0.4s cubic-bezier(0.16,1,0.3,1) both",
+        "sheet-up": "sheet-up 0.35s cubic-bezier(0.16,1,0.3,1) both",
         "spin-slow": "spin-slow 1.1s linear infinite",
       },
     },

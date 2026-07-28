@@ -30,7 +30,7 @@
 - `src/app/apply/page.tsx` + `src/app/apply/wizard.tsx` — DocuSign Web Form–style application (green bank header, % progress bar, section per screen, Back/Next, Powered-by-DocuSign footer) + rate-check overlay
 - `src/app/status/[caseId]/page.tsx` — borrower view: Upstart offer → DocuSign Workspaces UI (Tasks/Overview/Documents/Details tabs, welcome banner + progress, stat cards, activity rail, sign tasks + DocuSign Click–style click-to-agree modal). Polls every 2.5s while envelopes await signature
 - `src/app/status/[caseId]/ops/page.tsx` — ops "behind the scenes" dashboard: Workflow Builder canvas (branch chips on the decision), decision internals, Workspaces ops section, agreements table, App Center tiles, Workflow Templates gallery
-- `src/app/sign/[caseId]/[envelopeId]/page.tsx` — eSign ceremony (adopt signature, required-field footer, success interstitial)
+- `src/app/sign/[caseId]/[envelopeId]/page.tsx` — eSign ceremony (adopt signature, required-field footer, success interstitial); iPhone user agents get a DocuSign Focused View variant (minimal chrome, single nav button, bottom-sheet adopt)
 - `src/app/api/apply/route.ts` — POST submit application
 - `src/app/api/case/[caseId]/route.ts` — GET case; POST sign an envelope
 - `src/app/api/case/[caseId]/accept/route.ts` — POST accept offer

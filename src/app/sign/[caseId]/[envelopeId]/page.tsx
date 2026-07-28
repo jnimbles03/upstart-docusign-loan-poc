@@ -103,8 +103,14 @@ export default function SignPage({
   const [started, setStarted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [styleIdx, setStyleIdx] = useState(0);
+  const [isIPhone, setIsIPhone] = useState(false);
   const signBlockRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // iPhone detection → render the mobile Focused View ceremony
+  useEffect(() => {
+    setIsIPhone(/iPhone|iPod/.test(navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     fetch(`/api/case/${params.caseId}`)
@@ -203,6 +209,19 @@ export default function SignPage({
           Back to workspace
         </button>
       </div>
+    );
+  }
+
+  // iPhone → DocuSign Focused View (minimal chrome, native feel)
+  if (isIPhone) {
+    return (
+      <FocusedSigningView
+        caseId={params.caseId}
+        env={env}
+        doc={doc}
+        decision={d}
+        borrower={b}
+      />
     );
   }
 
@@ -682,6 +701,306 @@ export default function SignPage({
               {env.name} was signed and completed.
               <br />
               Returning to your workspace…
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================== FOCUSED VIEW (iPhone) ======================== */
+// Mirrors Docusign JS `displayFormat: "focused"` — minimal chrome: just the
+// agreement and a single navigation button, lender-branded, native feel.
+
+function FocusedSigningView({
+  caseId,
+  env,
+  doc,
+  decision,
+  borrower,
+}: {
+  caseId: string;
+  env: Envelope;
+  doc: Doc;
+  decision: Decision | null;
+  borrower: Case["borrower"];
+}) {
+  const router = useRouter();
+  const [signed, setSigned] = useState(false);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [styleIdx, setStyleIdx] = useState(0);
+
+  const alreadyCompleted = env.status === "completed";
+  const borrowerName = `${borrower.firstName} ${borrower.lastName}`;
+  const initials = `${borrower.firstName[0] ?? ""}${borrower.lastName[0] ?? ""}`;
+  const sig = SIG_STYLES[styleIdx];
+  const today = new Date().toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+
+  async function finish() {
+    setFinishing(true);
+    await fetch(`/api/case/${caseId}?envelopeId=${env.envelopeId}`, {
+      method: "POST",
+    });
+    setFinished(true);
+    setTimeout(() => router.push(`/status/${caseId}`), 1700);
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#EEF0F3]">
+      {/* slim lender-branded chrome */}
+      <header className="flex h-12 items-center gap-3 border-b border-ds-line bg-white px-3">
+        <button
+          onClick={() => router.push(`/status/${caseId}`)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-ds-grayText active:bg-gray-100"
+          aria-label="Close"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-bold text-ds-ink">{env.name}</p>
+          <p className="truncate text-[10px] text-ds-grayText">
+            Springfield Community Bank · Secure signing
+          </p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 28 28" aria-hidden>
+          <rect width="28" height="28" rx="6" fill="#DC2C34" />
+          <path d="M7 18.5c3.2-.8 4.8-5 5.6-9.5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M10.5 17.5c3.8 1 7.5-.8 10.5-5.5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" />
+        </svg>
+      </header>
+
+      {/* agreement */}
+      <main className="flex-1 overflow-y-auto px-3 py-4 pb-32">
+        <div className="rounded-lg bg-white p-5 shadow-sheet">
+          <p className="text-[10px] uppercase tracking-widest text-ds-grayText">
+            Springfield Community Bank · Consumer Lending
+          </p>
+          <h1 className="mt-1.5 text-lg font-bold text-ds-ink">{doc.name}</h1>
+
+          {/* key terms */}
+          {decision?.status === "approved" && (
+            <div className="mt-4 rounded-lg border border-gray-200">
+              {(
+                [
+                  ["Principal", money(decision.approvedAmount)],
+                  ["APR", pct(decision.apr)],
+                  ["Term", `${decision.termMonths} mo`],
+                  ["Monthly payment", money(decision.monthlyPayment)],
+                  ["Origination fee", money(decision.originationFee)],
+                ] as [string, string][]
+              ).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between border-b border-gray-100 px-3.5 py-2.5 last:border-0">
+                  <span className="text-xs text-ds-grayText">{k}</span>
+                  <span className="text-sm font-bold text-ds-ink">{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* legal */}
+          <div className="mt-4 space-y-2.5 text-[11px] leading-relaxed text-ds-grayText">
+            <p>
+              By signing below, Borrower agrees to the terms of this {doc.name},
+              including the repayment schedule, fees, and disclosures set forth
+              herein. This document was prepared electronically and presented
+              for signature via Docusign.
+            </p>
+            <p>
+              Borrower acknowledges that an electronic signature has the same
+              legal effect as a handwritten signature under the ESIGN Act.
+              (POC content — not a real agreement.)
+            </p>
+          </div>
+
+          {/* signature */}
+          <div className="mt-6">
+            <p className="border-b border-gray-800 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-800">
+              Signature of Borrower
+            </p>
+            {signed || alreadyCompleted ? (
+              <div className="mt-3 inline-block animate-fade-in">
+                <div className="rounded-md border-2 border-[#3E63DD] px-4 pb-2 pt-5">
+                  <p className="-mt-8 mb-1 bg-white px-1 text-[11px] font-semibold text-[#3E63DD]">
+                    DocuSigned by:
+                  </p>
+                  <p
+                    className="text-2xl leading-none text-[#1B2A6B]"
+                    style={{ fontFamily: sig.fontFamily, fontStyle: sig.slant ? "italic" : "normal" }}
+                  >
+                    {borrowerName}
+                  </p>
+                  <p className="mt-1.5 text-[10px] tracking-wide text-[#3E63DD]">
+                    {signatureId(env.envelopeId)}
+                  </p>
+                </div>
+                <p className="mt-2 text-[11px] text-ds-grayText">
+                  {borrowerName} · {today}
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAdoptOpen(true)}
+                className="ds-field mt-3 w-full justify-center py-3"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2C34" strokeWidth="2">
+                  <path d="M4 22V2M4 3h13l-3 4.5L17 12H4" />
+                </svg>
+                <span className="text-sm font-semibold text-ds-ink">Sign Here</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-3 text-center text-[10px] text-ds-grayText">
+          {doc.name.replace(/\s+/g, "_")}.pdf · 1 of 1 · Focused view
+        </p>
+      </main>
+
+      {/* single navigation button (signingNavigationButton) */}
+      <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-ds-line bg-white px-4 pt-3" style={{ paddingBottom: "max(0.85rem, env(safe-area-inset-bottom))" }}>
+        {alreadyCompleted ? (
+          <button
+            className="btn w-full bg-ds-ink py-3 text-sm text-white"
+            onClick={() => router.push(`/status/${caseId}`)}
+          >
+            Back to workspace
+          </button>
+        ) : signed ? (
+          <button
+            className="btn w-full bg-ds-purple py-3 text-sm tracking-wide text-white shadow-lift"
+            onClick={finish}
+            disabled={finishing}
+          >
+            {finishing ? "FINISHING…" : "FINISH"}
+          </button>
+        ) : (
+          <button
+            className="btn w-full bg-ds-yellow py-3 text-sm font-bold tracking-wide text-ds-ink shadow-lift"
+            onClick={() => setAdoptOpen(true)}
+          >
+            SIGN
+          </button>
+        )}
+      </footer>
+
+      {/* adopt signature — iOS bottom sheet */}
+      {adoptOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 animate-fade-in"
+          onClick={() => setAdoptOpen(false)}
+        >
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[92vh] overflow-y-auto rounded-t-2xl bg-white animate-sheet-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-gray-300" />
+            <div className="flex items-center justify-between px-5 pb-2 pt-3">
+              <h2 className="text-base font-bold text-ds-ink">Adopt Your Signature</h2>
+              <button
+                onClick={() => setAdoptOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 active:bg-gray-100"
+                aria-label="Close"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-5 pb-6" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-ds-grayText">Full name</p>
+                  <p className="text-sm font-semibold">{borrowerName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-ds-grayText">Initials</p>
+                  <p className="text-sm font-semibold">{initials}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                  Preview · {sig.name}
+                </p>
+                <button
+                  onClick={() => setStyleIdx((i) => (i + 1) % SIG_STYLES.length)}
+                  className="rounded-full border-2 border-ds-green px-3 py-0.5 text-[11px] font-semibold text-ds-green"
+                >
+                  Change Style
+                </button>
+              </div>
+              <div className="mt-2 flex items-center gap-4 rounded-md border border-gray-300 p-4">
+                <div className="inline-block rounded-md border-2 border-[#3E63DD] px-3 pb-1.5 pt-4">
+                  <p className="-mt-7 mb-1 bg-white px-1 text-[10px] font-semibold text-[#3E63DD]">
+                    DocuSigned by:
+                  </p>
+                  <p
+                    className="text-2xl leading-none text-[#1B2A6B]"
+                    style={{ fontFamily: sig.fontFamily, fontStyle: sig.slant ? "italic" : "normal" }}
+                  >
+                    {borrowerName}
+                  </p>
+                </div>
+                <div className="inline-block rounded-md border-2 border-[#3E63DD] px-3 py-2.5">
+                  <p
+                    className="text-xl leading-none text-[#1B2A6B]"
+                    style={{ fontFamily: sig.fontFamily, fontStyle: sig.slant ? "italic" : "normal" }}
+                  >
+                    {initials}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-3 text-[10px] leading-relaxed text-ds-grayText">
+                By selecting Adopt and Sign, I agree that the signature and
+                initials will be the electronic representation of my signature
+                and initials for all purposes, including legally binding
+                contracts — just the same as a pen-and-paper signature.
+              </p>
+
+              <button
+                className="btn mt-4 w-full bg-ds-yellow py-3 text-sm font-bold tracking-wide text-ds-ink shadow-sm"
+                onClick={() => {
+                  setAdoptOpen(false);
+                  setSigned(true);
+                }}
+              >
+                ADOPT AND SIGN
+              </button>
+              <button
+                className="mt-2 w-full py-1.5 text-center text-xs font-bold tracking-wide text-gray-500"
+                onClick={() => setAdoptOpen(false)}
+              >
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* success */}
+      {finished && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-white/95 backdrop-blur-sm animate-fade-in">
+          <div className="text-center animate-scale-in">
+            <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-ds-greenSoft">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ds-green text-white animate-pop-check">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
+            </span>
+            <h2 className="text-xl font-bold text-ds-ink">You&apos;re all set</h2>
+            <p className="mt-1 text-sm text-ds-grayText">
+              Signed and completed.
             </p>
           </div>
         </div>
