@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #f7f8fa;
+  color: #1a1a1a;
+}
+
+.card {
+  @apply rounded-xl border border-gray-200 bg-white shadow-card;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+}
+.btn-primary {
+  @apply btn bg-brand-docusign text-white shadow-sm hover:bg-ds-redDark hover:shadow;
+}
+.btn-upstart {
+  @apply btn bg-brand-upstart text-white shadow-sm hover:bg-up-dark hover:shadow;
+}
+.btn-ghost {
+  @apply btn border border-gray-200 bg-white text-gray-800 hover:bg-gray-50;
+}
+
+.label {
+  @apply mb-1.5 block text-[13px] font-semibold text-gray-700;
+}
+.input {
+  @apply block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition placeholder:text-gray-400 hover:border-gray-400 focus:border-brand-upstart focus:outline-none focus:ring-4 focus:ring-brand-upstart/15;
+}
+.input-error {
+  @apply border-red-400 focus:border-red-500 focus:ring-red-500/15;
+}
+
+.field-error {
+  @apply mt-1 flex items-center gap-1 text-xs font-medium text-red-600 animate-fade-in;
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  @apply relative overflow-hidden rounded-md bg-gray-200/70;
+}
+.skeleton::after {
+  content: "";
+  @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent;
+  animation: shimmer 1.4s infinite;
+}
+
+/* DocuSign signing-session styles */
+.font-script {
+  font-family: "Segoe Script", "Savoye LET", "Snell Roundhand", "Brush Script MT",
+    "Lucida Handwriting", cursive;
+}
+
+.ds-field {
+  @apply inline-flex min-w-[220px] items-center gap-2 rounded-sm border border-dashed border-ds-red bg-ds-yellowSoft px-3 py-2 transition hover:brightness-95;
+}
+
+.ds-pill {
+  @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+}
+
+/* Thin styled scrollbar for horizontal canvases */
+.scroll-x-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #d6dae0 transparent;
+}
+.scroll-x-thin::-webkit-scrollbar {
+  height: 6px;
+}
+.scroll-x-thin::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-gray-300;
+}
