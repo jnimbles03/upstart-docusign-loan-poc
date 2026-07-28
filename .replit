@@ -1,5 +1,5 @@
 # Replit config — Next.js POC (single Node process keeps the in-memory store alive)
-run = "npm run start"
+run = "npm run build && npm run start"
 
 [deployment]
 deploymentTarget = "gce"
