@@ -346,8 +346,9 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Advance the checklist on a cadence that roughly matches mock latency.
+    const STAGE_MS = 1400;
     const timers = CHECK_STAGES.map((_, i) =>
-      setTimeout(() => setStage(i + 1), 650 * (i + 1)),
+      setTimeout(() => setStage(i + 1), STAGE_MS * (i + 1)),
     );
 
     try {
@@ -365,7 +366,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Let the checklist finish before revealing the result.
-    const minWait = 650 * CHECK_STAGES.length + 500;
+    const minWait = STAGE_MS * CHECK_STAGES.length + 800;
     setTimeout(() => {
       timers.forEach(clearTimeout);
       const r = resultRef.current;
@@ -662,9 +663,9 @@ function AiBrainPanel({ form }: { form: FormState }) {
   useEffect(() => {
     const t = setInterval(
       () => setShown((s) => Math.min(s + 1, signals.length)),
-      300,
+      550,
     );
-    const v = setInterval(() => setVars((n) => Math.min(n + 113, 2531)), 60);
+    const v = setInterval(() => setVars((n) => Math.min(n + 29, 2531)), 50);
     return () => {
       clearInterval(t);
       clearInterval(v);
