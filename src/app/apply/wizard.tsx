@@ -346,7 +346,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Advance the checklist on a cadence that roughly matches mock latency.
-    const STAGE_MS = 2800;
+    const STAGE_MS = 4200;
     const timers = CHECK_STAGES.map((_, i) =>
       setTimeout(() => setStage(i + 1), STAGE_MS * (i + 1)),
     );
@@ -366,7 +366,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Let the checklist finish before revealing the result.
-    const minWait = STAGE_MS * CHECK_STAGES.length + 1200;
+    const minWait = STAGE_MS * CHECK_STAGES.length + 1500;
     setTimeout(() => {
       timers.forEach(clearTimeout);
       const r = resultRef.current;
@@ -602,6 +602,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
 type Signal = {
   label: string;
   detail: string;
+  thought: string; // typed out in mono while the model "computes" this signal
   w: number; // 0-1 bar strength
   tone: "strong" | "good" | "fair";
 };
@@ -632,45 +633,92 @@ function AiBrainPanel({ form }: { form: FormState }) {
   );
 
   const signals: Signal[] = [
-    { label: "Identity & application integrity", detail: "verified", w: 0.95, tone: "strong" },
+    {
+      label: "Identity & application integrity",
+      detail: "verified",
+      thought: `> identity_graph.lookup("${form.firstName} ${form.lastName}") → match_confidence=0.99`,
+      w: 0.95,
+      tone: "strong",
+    },
     {
       label: "Income level",
       detail: `${money(income)}/yr`,
+      thought: `> income_model.score(annual=${income}) → percentile=${income >= 80000 ? "81" : income >= 45000 ? "58" : "27"}`,
       w: income >= 80000 ? 0.9 : income >= 45000 ? 0.7 : 0.45,
       tone: income >= 80000 ? "strong" : income >= 45000 ? "good" : "fair",
     },
     {
       label: "Loan-to-income ratio",
       detail: `${Math.round(ratio * 100)}%`,
+      thought: `> capacity.compute(principal=${form.requestedAmount}, income=${income}) → lti=${ratio.toFixed(2)}`,
       w: ratio < 0.3 ? 0.9 : ratio < 0.55 ? 0.65 : 0.35,
       tone: ratio < 0.3 ? "strong" : ratio < 0.55 ? "good" : "fair",
     },
-    { label: "Employment & education signals", detail: "consistent", w: 0.78, tone: "good" },
-    { label: "Credit history depth", detail: "established", w: 0.72, tone: "good" },
+    {
+      label: "Employment & education signals",
+      detail: "consistent",
+      thought: "> trajectory.model(employment, education) → stability=0.78",
+      w: 0.78,
+      tone: "good",
+    },
+    {
+      label: "Credit history depth",
+      detail: "established",
+      thought: "> bureau.features(history_months, tradelines) → depth=0.72",
+      w: 0.72,
+      tone: "good",
+    },
     {
       label: "Estimated existing obligations",
       detail: ratio < 0.4 ? "manageable" : "elevated",
+      thought: `> obligations.estimate(zip="${form.zip}") → burden=${ratio < 0.4 ? "0.31" : "0.58"}`,
       w: ratio < 0.4 ? 0.75 : 0.45,
       tone: ratio < 0.4 ? "good" : "fair",
     },
-    { label: "Fraud & velocity checks", detail: "pass", w: 0.98, tone: "strong" },
-    { label: "Lender policy fit", detail: "Springfield 2026-Q3", w: 0.85, tone: "good" },
+    {
+      label: "Fraud & velocity checks",
+      detail: "pass",
+      thought: "> fraud.scan(device, velocity, anomalies) → 0 flags",
+      w: 0.98,
+      tone: "strong",
+    },
+    {
+      label: "Lender policy fit",
+      detail: "Springfield 2026-Q3",
+      thought: `> policy.match("${form.loanType}", return_curve=2026-Q3) → eligible`,
+      w: 0.85,
+      tone: "good",
+    },
   ];
 
   const [shown, setShown] = useState(0);
+  const [typed, setTyped] = useState(0);
   const [vars, setVars] = useState(0);
 
+  // typewriter: type the current signal's thought, then lock it in
   useEffect(() => {
-    const t = setInterval(
-      () => setShown((s) => Math.min(s + 1, signals.length)),
-      1050,
-    );
-    const v = setInterval(() => setVars((n) => Math.min(n + 14, 2531)), 50);
-    return () => {
-      clearInterval(t);
-      clearInterval(v);
-    };
+    if (shown >= signals.length) return;
+    const thought = signals[shown].thought;
+    let i = 0;
+    const type = setInterval(() => {
+      i += 1;
+      setTyped(i);
+      if (i >= thought.length) {
+        clearInterval(type);
+        setTimeout(() => {
+          setShown((s) => s + 1);
+          setTyped(0);
+        }, 450);
+      }
+    }, 26);
+    return () => clearInterval(type);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+
+  // variables counter crawls up over the full sequence
+  useEffect(() => {
+    const v = setInterval(() => setVars((n) => Math.min(n + 10, 2531)), 50);
+    return () => clearInterval(v);
   }, []);
 
   const progress = shown / signals.length;
@@ -705,7 +753,7 @@ function AiBrainPanel({ form }: { form: FormState }) {
       </p>
 
       {/* signals */}
-      <ul className="mt-3 space-y-2.5">
+      <ul className="mt-3 space-y-3">
         {signals.slice(0, shown).map((s) => (
           <li key={s.label} className="animate-fade-up">
             <div className="flex items-baseline justify-between gap-2">
@@ -718,6 +766,9 @@ function AiBrainPanel({ form }: { form: FormState }) {
                 {s.detail}
               </span>
             </div>
+            <p className="mt-0.5 truncate font-mono text-[10px] text-white/35">
+              {s.thought}
+            </p>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className={`h-full rounded-full ${TONE_CLS[s.tone].bar} transition-all duration-700`}
@@ -737,6 +788,10 @@ function AiBrainPanel({ form }: { form: FormState }) {
                 computing
               </span>
             </div>
+            <p className="mt-0.5 min-h-[14px] truncate font-mono text-[10px] text-[#0DBEA8]/90">
+              {signals[shown].thought.slice(0, typed)}
+              <span className="animate-pulse">▌</span>
+            </p>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
               <div className="skeleton h-full w-full bg-white/10" />
             </div>
