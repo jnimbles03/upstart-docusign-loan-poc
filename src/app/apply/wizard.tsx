@@ -528,64 +528,228 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
 
       {/* -------------------------------------------- rate-check overlay */}
       {checking && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-white/95 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-sm px-6 text-center">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-up-soft">
-              <svg
-                className="animate-spin-slow text-up-green"
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              >
-                <path d="M21 12a9 9 0 1 1-6.2-8.56" />
-              </svg>
+        <div className="fixed inset-0 z-30 flex items-center justify-center overflow-y-auto bg-white/95 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="grid w-full max-w-3xl items-center gap-8 md:grid-cols-[1fr_1.15fr]">
+            {/* left: process stages */}
+            <div className="text-center md:text-left">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-up-soft md:mx-0">
+                <svg
+                  className="animate-spin-slow text-up-green"
+                  width="30"
+                  height="30"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <path d="M21 12a9 9 0 1 1-6.2-8.56" />
+                </svg>
+              </div>
+              <PoweredByUpstart />
+              <h2 className="mt-3 text-xl font-bold text-up-ink">
+                Decisioning your application…
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Instant AI underwriting — usually just a few seconds.
+              </p>
+              <ul className="mx-auto mt-6 max-w-xs space-y-3 text-left md:mx-0">
+                {CHECK_STAGES.map((label, i) => {
+                  const done = stage > i;
+                  const active = stage === i;
+                  return (
+                    <li key={label} className="flex items-center gap-3 text-sm">
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
+                          done ? "bg-up-green" : active ? "bg-up-soft" : "bg-gray-100"
+                        }`}
+                      >
+                        {done ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" className="animate-pop-check">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        ) : active ? (
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-up-green" />
+                        ) : (
+                          <span className="h-2 w-2 rounded-full bg-gray-300" />
+                        )}
+                      </span>
+                      <span
+                        className={`font-medium transition-colors duration-300 ${
+                          done ? "text-up-ink" : active ? "text-up-dark" : "text-gray-400"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            <PoweredByUpstart />
-            <h2 className="mt-3 text-xl font-bold text-up-ink">
-              Decisioning your application…
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Instant AI underwriting — usually just a few seconds.
-            </p>
-            <ul className="mx-auto mt-6 max-w-xs space-y-3 text-left">
-              {CHECK_STAGES.map((label, i) => {
-                const done = stage > i;
-                const active = stage === i;
-                return (
-                  <li key={label} className="flex items-center gap-3 text-sm">
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${
-                        done ? "bg-up-green" : active ? "bg-up-soft" : "bg-gray-100"
-                      }`}
-                    >
-                      {done ? (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" className="animate-pop-check">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                      ) : active ? (
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-up-green" />
-                      ) : (
-                        <span className="h-2 w-2 rounded-full bg-gray-300" />
-                      )}
-                    </span>
-                    <span
-                      className={`font-medium transition-colors duration-300 ${
-                        done ? "text-up-ink" : active ? "text-up-dark" : "text-gray-400"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+
+            {/* right: the underwriting brain */}
+            <AiBrainPanel form={form} />
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------- AI underwriting brain */
+
+type Signal = {
+  label: string;
+  detail: string;
+  w: number; // 0-1 bar strength
+  tone: "strong" | "good" | "fair";
+};
+
+const TONE_CLS: Record<Signal["tone"], { chip: string; bar: string }> = {
+  strong: { chip: "bg-emerald-400/15 text-emerald-300", bar: "bg-emerald-400" },
+  good: { chip: "bg-teal-400/15 text-teal-300", bar: "bg-teal-400" },
+  fair: { chip: "bg-amber-400/15 text-amber-300", bar: "bg-amber-400" },
+};
+
+function AiBrainPanel({ form }: { form: FormState }) {
+  const income = Number(form.annualIncome) || 0;
+  const ratio = form.requestedAmount / Math.max(income, 1);
+
+  // mirrors the mock model's risk heuristic so the readout feels connected
+  const targetRisk = Math.max(
+    4,
+    Math.min(
+      96,
+      Math.round(
+        30 +
+          ratio * 60 -
+          (form.loanType === "auto" ? 6 : 0) -
+          (income > 80000 ? 10 : 0) +
+          (income < 25000 ? 12 : 0),
+      ),
+    ),
+  );
+
+  const signals: Signal[] = [
+    { label: "Identity & application integrity", detail: "verified", w: 0.95, tone: "strong" },
+    {
+      label: "Income level",
+      detail: `${money(income)}/yr`,
+      w: income >= 80000 ? 0.9 : income >= 45000 ? 0.7 : 0.45,
+      tone: income >= 80000 ? "strong" : income >= 45000 ? "good" : "fair",
+    },
+    {
+      label: "Loan-to-income ratio",
+      detail: `${Math.round(ratio * 100)}%`,
+      w: ratio < 0.3 ? 0.9 : ratio < 0.55 ? 0.65 : 0.35,
+      tone: ratio < 0.3 ? "strong" : ratio < 0.55 ? "good" : "fair",
+    },
+    { label: "Employment & education signals", detail: "consistent", w: 0.78, tone: "good" },
+    { label: "Credit history depth", detail: "established", w: 0.72, tone: "good" },
+    {
+      label: "Estimated existing obligations",
+      detail: ratio < 0.4 ? "manageable" : "elevated",
+      w: ratio < 0.4 ? 0.75 : 0.45,
+      tone: ratio < 0.4 ? "good" : "fair",
+    },
+    { label: "Fraud & velocity checks", detail: "pass", w: 0.98, tone: "strong" },
+    { label: "Lender policy fit", detail: "Springfield 2026-Q3", w: 0.85, tone: "good" },
+  ];
+
+  const [shown, setShown] = useState(0);
+  const [vars, setVars] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(
+      () => setShown((s) => Math.min(s + 1, signals.length)),
+      300,
+    );
+    const v = setInterval(() => setVars((n) => Math.min(n + 113, 2531)), 60);
+    return () => {
+      clearInterval(t);
+      clearInterval(v);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const progress = shown / signals.length;
+  const risk = Math.round(82 + (targetRisk - 82) * progress);
+  const riskColor =
+    risk < 45 ? "text-emerald-300" : risk < 72 ? "text-amber-300" : "text-red-300";
+
+  return (
+    <div className="rounded-2xl bg-[#0B1F33] p-5 text-white shadow-lift animate-scale-in">
+      {/* header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0DBEA8] opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#0DBEA8]" />
+          </span>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">
+            Upstart AI underwriting
+          </p>
+        </div>
+        <span className="rounded-full border border-[#0DBEA8]/50 px-2.5 py-0.5 text-[10px] font-semibold text-[#0DBEA8]">
+          on-demand intelligence
+        </span>
+      </div>
+
+      {/* variables counter */}
+      <p className="mt-3 font-mono text-xs text-white/50">
+        <span className="text-[#0DBEA8] tabular-nums">
+          {vars.toLocaleString()}
+        </span>{" "}
+        variables analyzed
+      </p>
+
+      {/* signals */}
+      <ul className="mt-3 space-y-2.5">
+        {signals.slice(0, shown).map((s) => (
+          <li key={s.label} className="animate-fade-up">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="truncate text-xs font-medium text-white/85">
+                {s.label}
+              </p>
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${TONE_CLS[s.tone].chip}`}
+              >
+                {s.detail}
+              </span>
+            </div>
+            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full ${TONE_CLS[s.tone].bar} transition-all duration-500`}
+                style={{ width: `${s.w * 100}%` }}
+              />
+            </div>
+          </li>
+        ))}
+        {shown < signals.length && (
+          <li className="flex items-center gap-2 text-xs text-white/40">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0DBEA8]" />
+            <span className="font-mono">evaluating…</span>
+          </li>
+        )}
+      </ul>
+
+      {/* risk readout */}
+      <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+            Preliminary risk score
+          </p>
+          <p className="text-[10px] text-white/35">lower is better</p>
+        </div>
+        <p className={`font-mono text-3xl font-bold tabular-nums ${riskColor}`}>
+          {risk}
+          <span className="text-sm text-white/40">/100</span>
+        </p>
+      </div>
+      <p className="mt-2 text-[10px] text-white/35">
+        Final pricing &amp; terms returned by the Upstart Credit Decision API
+        per Springfield Community Bank&apos;s credit policy.
+      </p>
     </div>
   );
 }
