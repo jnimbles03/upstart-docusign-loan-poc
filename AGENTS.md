@@ -19,7 +19,7 @@
 ## Layout
 - `src/lib/types.ts` — domain types (BorrowerInput, UpstartDecision, Envelope, LoanCase, …)
 - `src/lib/config/lender.ts` — lender credit policy, pricing caps, model/policy versions
-- `src/lib/config/templates.ts` — DocuSign template catalog (personal vs auto); 2 actions per loan: 1 eSign doc + 1 clickwrap disclosure
+- `src/lib/config/templates.ts` — DocuSign template catalog (personal vs auto); 2 actions per loan: 1 eSign doc + 1 clickwrap disclosure (clickwrap must be accepted before signing — enforced in UI, API 409, and sign route)
 - `src/lib/services/upstart.ts` — mock Upstart Credit Decision client
 - `src/lib/services/docusign.ts` — mock DocuSign doc prep / workspace / envelopes
 - `src/lib/services/orchestrator.ts` — ties the steps together

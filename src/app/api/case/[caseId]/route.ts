@@ -25,6 +25,17 @@ export async function POST(
   if (!envelopeId) {
     return NextResponse.json({ error: "envelopeId query param required." }, { status: 400 });
   }
+  // Order enforcement: the click-to-agree disclosure must be accepted first.
+  const target = c.envelopes.find((e) => e.envelopeId === envelopeId);
+  const clickwrapPending = c.envelopes.some(
+    (e) => e.method === "clickwrap" && e.status === "sent",
+  );
+  if (target && target.method !== "clickwrap" && clickwrapPending) {
+    return NextResponse.json(
+      { error: "Accept the Electronic Disclosures & E-Consent Agreement first." },
+      { status: 409 },
+    );
+  }
   const updated = await signOneEnvelope(c, envelopeId);
   saveCase(updated);
   return NextResponse.json(updated);

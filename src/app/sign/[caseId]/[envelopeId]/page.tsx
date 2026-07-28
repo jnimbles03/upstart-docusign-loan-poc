@@ -211,6 +211,32 @@ export default function SignPage({
       </div>
     );
   }
+  // Consent before signature: the E-Consent Agreement must be accepted first.
+  const clickwrapPending = c.envelopes.some(
+    (e) => e.method === "clickwrap" && e.status === "sent",
+  );
+  if (clickwrapPending && env.status === "sent") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#E8EAED] animate-fade-in">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ds-purple/10 text-ds-purple">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="4" y="10" width="16" height="10" rx="2" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+        </span>
+        <p className="max-w-sm text-center text-sm font-medium text-ds-ink">
+          Please review and accept the Electronic Disclosures &amp; E-Consent
+          Agreement before signing “{env.name}”.
+        </p>
+        <button
+          className="btn-ghost"
+          onClick={() => router.push(`/status/${params.caseId}`)}
+        >
+          Back to workspace
+        </button>
+      </div>
+    );
+  }
 
   // iPhone → DocuSign Focused View (minimal chrome, native feel)
   if (isIPhone) {

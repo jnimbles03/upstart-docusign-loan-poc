@@ -418,6 +418,9 @@ export default function BorrowerStatusPage({
   const totalEnvs = c.envelopes.length;
   const openTasks = totalEnvs - completedEnvs;
   const allDone = totalEnvs > 0 && completedEnvs === totalEnvs;
+  const clickwrapPending = c.envelopes.some(
+    (e) => e.method === "clickwrap" && e.status === "sent",
+  );
   const progress = totalEnvs === 0 ? 40 : Math.round(40 + 60 * (completedEnvs / totalEnvs));
 
   // activity feed, newest first
@@ -682,37 +685,6 @@ export default function BorrowerStatusPage({
                   </span>
                 </div>
 
-                <TaskGroup title="Loan documentation">
-                  {c.envelopes
-                    .filter((e) => e.method !== "clickwrap")
-                    .map((env) => {
-                      const done = env.status === "completed";
-                      return (
-                        <TaskRow
-                          key={env.envelopeId}
-                          icon="pen"
-                          done={done}
-                          title={done ? env.name : `Sign ${env.name.charAt(0).toLowerCase()}${env.name.slice(1)}`}
-                          sub={done ? `Signed ${env.completedAt ? timeOf(env.completedAt) : ""}` : "Signature required"}
-                          action={
-                            done ? (
-                              <span className="btn-ghost pointer-events-none shrink-0 px-4 py-1.5 text-xs">
-                                View
-                              </span>
-                            ) : (
-                              <button
-                                className="btn shrink-0 bg-ds-red px-5 py-1.5 text-xs text-white shadow-sm hover:bg-ds-redDark"
-                                onClick={() => router.push(`/sign/${c.caseId}/${env.envelopeId}`)}
-                              >
-                                Sign
-                              </button>
-                            )
-                          }
-                        />
-                      );
-                    })}
-                </TaskGroup>
-
                 <TaskGroup title="Disclosures">
                   {c.envelopes
                     .filter((e) => e.method === "clickwrap")
@@ -723,9 +695,9 @@ export default function BorrowerStatusPage({
                           key={env.envelopeId}
                           icon="click"
                           done={done}
-                          badge={done ? undefined : "Click to agree"}
+                          badge={done ? undefined : "Click to agree · first"}
                           title={done ? env.name : `Review and agree to ${env.name.charAt(0).toLowerCase()}${env.name.slice(1)}`}
-                          sub={done ? `Agreed ${env.completedAt ? timeOf(env.completedAt) : ""}` : "Acknowledgement required"}
+                          sub={done ? `Agreed ${env.completedAt ? timeOf(env.completedAt) : ""}` : "Acknowledgement required before signing"}
                           action={
                             done ? (
                               <span className="btn-ghost pointer-events-none shrink-0 px-4 py-1.5 text-xs">
@@ -737,6 +709,52 @@ export default function BorrowerStatusPage({
                                 onClick={() => setAgreeEnv(env)}
                               >
                                 Review and agree
+                              </button>
+                            )
+                          }
+                        />
+                      );
+                    })}
+                </TaskGroup>
+
+                <TaskGroup title="Loan documentation">
+                  {c.envelopes
+                    .filter((e) => e.method !== "clickwrap")
+                    .map((env) => {
+                      const done = env.status === "completed";
+                      const locked = !done && clickwrapPending;
+                      return (
+                        <TaskRow
+                          key={env.envelopeId}
+                          icon="pen"
+                          done={done}
+                          title={done ? env.name : `Sign ${env.name.charAt(0).toLowerCase()}${env.name.slice(1)}`}
+                          sub={
+                            done
+                              ? `Signed ${env.completedAt ? timeOf(env.completedAt) : ""}`
+                              : locked
+                                ? "Accept the E-Consent Agreement first"
+                                : "Signature required"
+                          }
+                          action={
+                            done ? (
+                              <span className="btn-ghost pointer-events-none shrink-0 px-4 py-1.5 text-xs">
+                                View
+                              </span>
+                            ) : locked ? (
+                              <span className="btn shrink-0 cursor-not-allowed bg-gray-100 px-4 py-1.5 text-xs text-gray-400">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <rect x="4" y="10" width="16" height="10" rx="2" />
+                                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                                </svg>
+                                Sign
+                              </span>
+                            ) : (
+                              <button
+                                className="btn shrink-0 bg-ds-red px-5 py-1.5 text-xs text-white shadow-sm hover:bg-ds-redDark"
+                                onClick={() => router.push(`/sign/${c.caseId}/${env.envelopeId}`)}
+                              >
+                                Sign
                               </button>
                             )
                           }
