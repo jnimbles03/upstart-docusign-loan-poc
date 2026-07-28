@@ -346,7 +346,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Advance the checklist on a cadence that roughly matches mock latency.
-    const STAGE_MS = 1400;
+    const STAGE_MS = 2800;
     const timers = CHECK_STAGES.map((_, i) =>
       setTimeout(() => setStage(i + 1), STAGE_MS * (i + 1)),
     );
@@ -366,7 +366,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Let the checklist finish before revealing the result.
-    const minWait = STAGE_MS * CHECK_STAGES.length + 800;
+    const minWait = STAGE_MS * CHECK_STAGES.length + 1200;
     setTimeout(() => {
       timers.forEach(clearTimeout);
       const r = resultRef.current;
@@ -663,9 +663,9 @@ function AiBrainPanel({ form }: { form: FormState }) {
   useEffect(() => {
     const t = setInterval(
       () => setShown((s) => Math.min(s + 1, signals.length)),
-      550,
+      1050,
     );
-    const v = setInterval(() => setVars((n) => Math.min(n + 29, 2531)), 50);
+    const v = setInterval(() => setVars((n) => Math.min(n + 14, 2531)), 50);
     return () => {
       clearInterval(t);
       clearInterval(v);
@@ -713,23 +713,33 @@ function AiBrainPanel({ form }: { form: FormState }) {
                 {s.label}
               </p>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${TONE_CLS[s.tone].chip}`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide animate-pop-check ${TONE_CLS[s.tone].chip}`}
               >
                 {s.detail}
               </span>
             </div>
             <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
               <div
-                className={`h-full rounded-full ${TONE_CLS[s.tone].bar} transition-all duration-500`}
+                className={`h-full rounded-full ${TONE_CLS[s.tone].bar} transition-all duration-700`}
                 style={{ width: `${s.w * 100}%` }}
               />
             </div>
           </li>
         ))}
         {shown < signals.length && (
-          <li className="flex items-center gap-2 text-xs text-white/40">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0DBEA8]" />
-            <span className="font-mono">evaluating…</span>
+          <li key="pending" className="animate-fade-in">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="flex items-center gap-2 truncate text-xs font-medium text-white/50">
+                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#0DBEA8]" />
+                {signals[shown].label}
+              </p>
+              <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wide text-white/40">
+                computing
+              </span>
+            </div>
+            <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="skeleton h-full w-full bg-white/10" />
+            </div>
           </li>
         )}
       </ul>
