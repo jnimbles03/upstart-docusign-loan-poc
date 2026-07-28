@@ -90,6 +90,11 @@ const config: Config = {
           from: { transform: "translateY(100%)" },
           to: { transform: "translateY(0)" },
         },
+        scan: {
+          "0%": { top: "0%" },
+          "50%": { top: "calc(100% - 2px)" },
+          "100%": { top: "0%" },
+        },
         "spin-slow": {
           to: { transform: "rotate(360deg)" },
         },

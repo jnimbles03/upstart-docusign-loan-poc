@@ -28,6 +28,13 @@ function NodeIcon({ id }: { id: string }) {
       );
     case "upstart":
       return <UpstartMark />;
+    case "idv":
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="#5F6368" strokeWidth="1.8">
+          <path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      );
     case "docprep":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="#5F6368" strokeWidth="1.8">
@@ -274,14 +281,14 @@ export default function WorkflowDemoPage() {
           )}
 
           {/* upstart step added */}
-          {(stage === "placed" || stage === "zoomed") && (
+          {stage === "placed" && (
             <>
               <Link />
               <FlowCard
                 icon="upstart"
                 title="Credit Decision"
                 sub="Upstart · returns approval, APR & term options"
-                highlight={stage === "placed"}
+                highlight
               />
             </>
           )}
@@ -289,6 +296,15 @@ export default function WorkflowDemoPage() {
           {/* zoom-out reveals the rest of the published flow */}
           {stage === "zoomed" && (
             <>
+              <Link delay={50} />
+              <FlowCard icon="idv" title="Verify Someone's Identity" sub="Docusign ID Verification · liveness + doc match" delay={80} />
+              <Link delay={150} />
+              <FlowCard
+                icon="upstart"
+                title="Credit Decision"
+                sub="Upstart · returns approval, APR & term options"
+                delay={200}
+              />
               {/* branch chips */}
               <div className="mt-3 flex w-full items-center justify-center gap-3 animate-fade-up" style={{ animationDelay: "150ms" }}>
                 <span className="rounded-full border border-ds-green/40 bg-ds-greenSoft px-2.5 py-1 text-[10px] font-bold text-ds-green">

@@ -48,6 +48,7 @@ function mark(
 
 export function newCase(borrower: BorrowerInput): LoanCase {
   const steps: WorkflowStep[] = [
+    step("idv", "Verify Someone's Identity"),
     step("decision", "Upstart Credit Decision"),
     step("offer", "Borrower Offer Acceptance"),
     step("docprep", "DocuSign Document Prep"),
@@ -68,6 +69,16 @@ export function newCase(borrower: BorrowerInput): LoanCase {
 
 // Run steps 1-5 up to the point requiring borrower action (offer acceptance).
 export async function runDecision(c: LoanCase): Promise<LoanCase> {
+  // DocuSign ID Verification happens before underwriting in the apply flow.
+  c = {
+    ...c,
+    steps: mark(
+      c.steps,
+      "idv",
+      "complete",
+      "Passed — doc authenticity + liveness + face match.",
+    ),
+  };
   c = { ...c, steps: mark(c.steps, "decision", "running") };
 
   const decision = await getCreditDecision(c.borrower);

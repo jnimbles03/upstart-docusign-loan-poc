@@ -227,6 +227,13 @@ function StepIcon({ stepKey }: { stepKey: string }) {
       );
     case "decision":
       return <UpstartMark />;
+    case "idv":
+      return (
+        <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="#5F6368" strokeWidth="1.8">
+          <path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      );
     case "offer":
       return (
         <svg className={cls} viewBox="0 0 24 24" fill="none" stroke="#5F6368" strokeWidth="1.8">
@@ -1161,6 +1168,8 @@ function appLabelFor(key: string): string {
   switch (key) {
     case "webform":
       return "Docusign Web Forms";
+    case "idv":
+      return "Docusign ID Verification";
     case "decision":
       return "Upstart · Credit Decision app";
     case "offer":

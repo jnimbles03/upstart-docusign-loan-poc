@@ -13,6 +13,13 @@ export type BorrowerInput = {
   annualIncome: number;
   loanType: LoanType;
   requestedAmount: number;
+  // income & employment (optional enrichment)
+  employmentStatus?: "employed" | "self_employed" | "retired" | "other";
+  employer?: string;
+  jobTitle?: string;
+  yearsEmployed?: number;
+  additionalIncome?: number;
+  housingPayment?: number; // monthly rent/mortgage
   // auto-only
   vehicleYear?: number;
   vehicleMake?: string;

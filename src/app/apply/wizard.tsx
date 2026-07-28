@@ -17,6 +17,12 @@ type FormState = {
   loanType: LoanType;
   requestedAmount: number;
   annualIncome: number | "";
+  employmentStatus: "" | "employed" | "self_employed" | "retired" | "other";
+  employer: string;
+  jobTitle: string;
+  yearsEmployed: string;
+  additionalIncome: number | "";
+  housingPayment: number | "";
   firstName: string;
   lastName: string;
   email: string;
@@ -53,6 +59,7 @@ function estimatePayment(amount: number) {
 }
 
 const CHECK_STAGES = [
+  "Identity verified — Docusign IDV",
   "Application sent via secure API",
   "Credit decisioning — 2,500+ variables",
   "Returning risk-based pricing & terms",
@@ -106,6 +113,12 @@ const PERSONAS: Persona[] = [
       loanType: "personal",
       requestedAmount: 12000,
       annualIncome: 95000,
+      employmentStatus: "employed",
+      employer: "State of Illinois",
+      jobTitle: "Project Manager",
+      yearsEmployed: "6",
+      additionalIncome: "",
+      housingPayment: 1450,
       firstName: "Jordan",
       lastName: "Lee",
       email: "jordan.lee@example.com",
@@ -128,6 +141,12 @@ const PERSONAS: Persona[] = [
       loanType: "auto",
       requestedAmount: 18000,
       annualIncome: 88000,
+      employmentStatus: "self_employed",
+      employer: "Morgan Consulting LLC",
+      jobTitle: "Owner",
+      yearsEmployed: "4",
+      additionalIncome: 6000,
+      housingPayment: 1900,
       firstName: "Alex",
       lastName: "Morgan",
       email: "alex.morgan@example.com",
@@ -150,6 +169,12 @@ const PERSONAS: Persona[] = [
       loanType: "personal",
       requestedAmount: 30000,
       annualIncome: 18000,
+      employmentStatus: "employed",
+      employer: "Riverside Diner",
+      jobTitle: "Line Cook",
+      yearsEmployed: "1",
+      additionalIncome: "",
+      housingPayment: 850,
       firstName: "Sam",
       lastName: "Roe",
       email: "sam.roe@example.com",
@@ -174,6 +199,12 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     loanType: initialType,
     requestedAmount: 10000,
     annualIncome: "",
+    employmentStatus: "",
+    employer: "",
+    jobTitle: "",
+    yearsEmployed: "",
+    additionalIncome: "",
+    housingPayment: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -191,6 +222,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [phase, setPhase] = useState<"idv" | "decision">("idv");
   const [stage, setStage] = useState(0);
   const [fillMenu, setFillMenu] = useState<{ x: number; y: number } | null>(null);
   const resultRef = useRef<{ caseId: string } | { error: string } | null>(null);
@@ -215,6 +247,12 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
       loanType: initialType,
       requestedAmount: 10000,
       annualIncome: "",
+      employmentStatus: "",
+      employer: "",
+      jobTitle: "",
+      yearsEmployed: "",
+      additionalIncome: "",
+      housingPayment: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -254,8 +292,8 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
   const steps = useMemo(
     () =>
       form.loanType === "auto"
-        ? ["Loan details", "About you", "Vehicle", "Review"]
-        : ["Loan details", "About you", "Review"],
+        ? ["Loan details", "Income & employment", "About you", "Vehicle", "Review"]
+        : ["Loan details", "Income & employment", "About you", "Review"],
     [form.loanType],
   );
   const lastStep = steps.length - 1;
@@ -279,8 +317,25 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     if (label === "Loan details") {
       if (form.requestedAmount < 1000 || form.requestedAmount > 50000)
         e.requestedAmount = "Choose an amount between $1,000 and $50,000.";
+    }
+    if (label === "Income & employment") {
+      if (!form.employmentStatus) e.employmentStatus = "Select your employment status.";
+      if (
+        (form.employmentStatus === "employed" ||
+          form.employmentStatus === "self_employed") &&
+        !form.employer.trim()
+      )
+        e.employer = "Required.";
+      if (
+        (form.employmentStatus === "employed" ||
+          form.employmentStatus === "self_employed") &&
+        !form.jobTitle.trim()
+      )
+        e.jobTitle = "Required.";
       if (form.annualIncome === "" || form.annualIncome <= 0)
         e.annualIncome = "Enter your annual income.";
+      if (form.yearsEmployed && Number(form.yearsEmployed) > 60)
+        e.yearsEmployed = "Enter years employed (0–60).";
     }
     if (label === "About you") {
       if (!form.firstName.trim()) e.firstName = "Required.";
@@ -322,6 +377,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     if (!validateStep(step)) return;
     setSubmitError(null);
     setChecking(true);
+    setPhase("idv");
     setStage(0);
     resultRef.current = null;
 
@@ -334,6 +390,14 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
       state: form.state,
       zip: form.zip,
       annualIncome: Number(form.annualIncome),
+      employmentStatus: form.employmentStatus || undefined,
+      employer: form.employer || undefined,
+      jobTitle: form.jobTitle || undefined,
+      yearsEmployed: form.yearsEmployed ? Number(form.yearsEmployed) : undefined,
+      additionalIncome:
+        form.additionalIncome === "" ? undefined : Number(form.additionalIncome),
+      housingPayment:
+        form.housingPayment === "" ? undefined : Number(form.housingPayment),
       loanType: form.loanType,
       requestedAmount: form.requestedAmount,
     };
@@ -345,10 +409,12 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
       if (form.vin) body.vin = form.vin;
     }
 
-    // Advance the checklist on a cadence that roughly matches mock latency.
-    const STAGE_MS = 4200;
+    // Timeline: IDV phase (~7.2s), then the underwriting brain phase.
+    const IDV_MS = 7200;
+    const STAGE_MS = 3600;
+    setTimeout(() => setPhase("decision"), IDV_MS);
     const timers = CHECK_STAGES.map((_, i) =>
-      setTimeout(() => setStage(i + 1), STAGE_MS * (i + 1)),
+      setTimeout(() => setStage(i + 1), IDV_MS + STAGE_MS * i),
     );
 
     try {
@@ -366,7 +432,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     }
 
     // Let the checklist finish before revealing the result.
-    const minWait = STAGE_MS * CHECK_STAGES.length + 1500;
+    const minWait = IDV_MS + STAGE_MS * (CHECK_STAGES.length - 1) + 1200;
     setTimeout(() => {
       timers.forEach(clearTimeout);
       const r = resultRef.current;
@@ -438,6 +504,9 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
         <div key={step} className="mt-8 animate-fade-up">
           {steps[step] === "Loan details" && (
             <StepLoan form={form} set={set} errors={errors} />
+          )}
+          {steps[step] === "Income & employment" && (
+            <StepIncome form={form} set={set} errors={errors} />
           )}
           {steps[step] === "About you" && (
             <StepAbout form={form} set={set} errors={errors} />
@@ -547,13 +616,44 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
                   <path d="M21 12a9 9 0 1 1-6.2-8.56" />
                 </svg>
               </div>
-              <PoweredByUpstart />
-              <h2 className="mt-3 text-xl font-bold text-up-ink">
-                Decisioning your application…
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Instant AI underwriting — usually just a few seconds.
-              </p>
+              {phase === "idv" ? (
+                <>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                      Powered by
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#DC2C34" strokeWidth="1.8">
+                        <path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z" />
+                        <path d="m9 12 2 2 4-4" />
+                      </svg>
+                      <span className="text-[15px] font-bold tracking-tight text-ds-ink">
+                        Docusign
+                      </span>
+                      <span className="text-[15px] font-medium tracking-tight text-gray-500">
+                        ID Verification
+                      </span>
+                    </span>
+                  </span>
+                  <h2 className="mt-3 text-xl font-bold text-ds-ink">
+                    Verifying your identity…
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Follow the instructions on your phone — don&apos;t close
+                    this window, we&apos;ll pick up here automatically.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <PoweredByUpstart />
+                  <h2 className="mt-3 text-xl font-bold text-up-ink">
+                    Decisioning your application…
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Instant AI underwriting — usually just a few seconds.
+                  </p>
+                </>
+              )}
               <ul className="mx-auto mt-6 max-w-xs space-y-3 text-left md:mx-0">
                 {CHECK_STAGES.map((label, i) => {
                   const done = stage > i;
@@ -588,11 +688,154 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
               </ul>
             </div>
 
-            {/* right: the underwriting brain */}
-            <AiBrainPanel form={form} />
+            {/* right: IDV phone flow → the underwriting brain */}
+            {phase === "idv" ? <IdvPanel /> : <AiBrainPanel form={form} />}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------- Docusign ID Verification (IDV) */
+// Simulates the jump-to-mobile flow: SMS link → license scan → selfie
+// liveness → verification report, then hands off to underwriting.
+
+const IDV_REPORT: { label: string; doneAt: number }[] = [
+  { label: "Document authenticity", doneAt: 2 },
+  { label: "Age validation", doneAt: 2 },
+  { label: "Spoofing detection", doneAt: 3 },
+  { label: "Liveness detected", doneAt: 3 },
+  { label: "Face match", doneAt: 3 },
+];
+
+function IdvPanel() {
+  const [sub, setSub] = useState(0); // 0 sms · 1 scan · 2 selfie · 3 done
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setSub(1), 2000);
+    const t2 = setTimeout(() => setSub(2), 4200);
+    const t3 = setTimeout(() => setSub(3), 6400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center rounded-2xl bg-[#0B1F33] p-5 text-white shadow-lift animate-scale-in">
+      <div className="flex w-full items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ds-red opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-ds-red" />
+          </span>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/80">
+            Docusign ID Verification
+          </p>
+        </div>
+        <span className="rounded-full border border-white/25 px-2.5 py-0.5 text-[10px] font-semibold text-white/70">
+          jump to mobile
+        </span>
+      </div>
+
+      {/* phone mock */}
+      <div className="mt-4 w-[190px] rounded-[1.8rem] border-[5px] border-gray-700 bg-white p-2 text-ds-ink shadow-lift">
+        <div className="mx-auto mb-1.5 h-3.5 w-16 rounded-full bg-gray-800" />
+        <div className="flex h-[240px] flex-col items-center justify-center rounded-2xl bg-gray-50 px-3 text-center">
+          {sub === 0 && (
+            <div className="w-full animate-fade-up">
+              <div className="rounded-2xl rounded-bl-sm bg-gray-200 p-2.5 text-left">
+                <p className="text-[10px] leading-snug text-gray-800">
+                  <span className="font-bold">Docusign:</span> use this link to
+                  verify your identity{" "}
+                  <span className="text-ds-blue underline">
+                    demo.services.docusign.net/id/QmUCaPuv0
+                  </span>
+                </p>
+              </div>
+              <p className="mt-2 text-[9px] text-gray-400">
+                Text Message · SMS · just now
+              </p>
+            </div>
+          )}
+          {sub === 1 && (
+            <div className="w-full animate-fade-up">
+              <div className="relative overflow-hidden rounded-md border-2 border-ds-blue/60 bg-white p-2.5">
+                {/* mock license */}
+                <div className="flex gap-2">
+                  <div className="h-10 w-8 rounded-sm bg-gradient-to-br from-gray-300 to-gray-400" />
+                  <div className="flex-1 space-y-1.5 py-0.5">
+                    <div className="h-1.5 w-3/4 rounded bg-gray-300" />
+                    <div className="h-1.5 w-1/2 rounded bg-gray-200" />
+                    <div className="h-1.5 w-2/3 rounded bg-gray-200" />
+                  </div>
+                </div>
+                {/* scan line */}
+                <div className="absolute inset-x-0 top-0 h-0.5 animate-[scan_1.2s_ease-in-out_infinite] bg-ds-blue shadow-[0_0_8px_2px_rgba(46,99,231,0.6)]" />
+              </div>
+              <p className="mt-2 text-[10px] font-semibold text-gray-700">
+                Scanning front of driver&apos;s license
+              </p>
+            </div>
+          )}
+          {sub === 2 && (
+            <div className="w-full animate-fade-up">
+              <div className="relative mx-auto flex h-28 w-24 items-center justify-center">
+                {/* corner brackets */}
+                {["top-0 left-0 border-t-2 border-l-2 rounded-tl-lg", "top-0 right-0 border-t-2 border-r-2 rounded-tr-lg", "bottom-0 left-0 border-b-2 border-l-2 rounded-bl-lg", "bottom-0 right-0 border-b-2 border-r-2 rounded-br-lg"].map(
+                  (pos) => (
+                    <span key={pos} className={`absolute h-6 w-6 border-ds-blue ${pos}`} />
+                  ),
+                )}
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" className="animate-pulse">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
+                </svg>
+              </div>
+              <p className="mt-1 text-[10px] font-semibold text-gray-700">
+                Position your face in the frame
+              </p>
+            </div>
+          )}
+          {sub === 3 && (
+            <div className="animate-scale-in">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-ds-greenSoft">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ds-green text-white animate-pop-check">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </span>
+              </span>
+              <p className="mt-2 text-[11px] font-bold text-gray-800">
+                Identity verified
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* verification report */}
+      <ul className="mt-4 w-full space-y-1.5">
+        {IDV_REPORT.map((r) => {
+          const done = sub >= r.doneAt;
+          return (
+            <li key={r.label} className="flex items-center gap-2 text-[11px]">
+              {done ? (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="3" className="shrink-0 animate-pop-check">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-white/30" />
+              )}
+              <span className={done ? "text-white/85" : "text-white/35"}>
+                {r.label}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -657,7 +900,7 @@ function AiBrainPanel({ form }: { form: FormState }) {
     {
       label: "Employment & education signals",
       detail: "consistent",
-      thought: "> trajectory.model(employment, education) → stability=0.78",
+      thought: `> employment.verify("${form.employer || "n/a"}", tenure=${form.yearsEmployed || "?"}y) → stability=0.78`,
       w: 0.78,
       tone: "good",
     },
@@ -671,7 +914,7 @@ function AiBrainPanel({ form }: { form: FormState }) {
     {
       label: "Estimated existing obligations",
       detail: ratio < 0.4 ? "manageable" : "elevated",
-      thought: `> obligations.estimate(zip="${form.zip}") → burden=${ratio < 0.4 ? "0.31" : "0.58"}`,
+      thought: `> obligations.estimate(housing=${form.housingPayment === "" ? "n/a" : form.housingPayment}/mo) → burden=${ratio < 0.4 ? "0.31" : "0.58"}`,
       w: ratio < 0.4 ? 0.75 : 0.45,
       tone: ratio < 0.4 ? "good" : "fair",
     },
@@ -822,6 +1065,125 @@ function AiBrainPanel({ form }: { form: FormState }) {
 
 /* --------------------------------------------------------------- step UI */
 
+/* ------------------------------------------------- income & employment */
+
+const EMPLOYMENT_OPTIONS: { value: FormState["employmentStatus"]; label: string }[] = [
+  { value: "employed", label: "Employed" },
+  { value: "self_employed", label: "Self-employed" },
+  { value: "retired", label: "Retired" },
+  { value: "other", label: "Other" },
+];
+
+function StepIncome({
+  form,
+  set,
+  errors,
+}: {
+  form: FormState;
+  set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
+  errors: Partial<Record<keyof FormState, string>>;
+}) {
+  const moneyInput = (
+    key: "annualIncome" | "additionalIncome" | "housingPayment",
+    label: string,
+    placeholder: string,
+    required: boolean,
+  ) => (
+    <Field label={label} required={required} error={errors[key]}>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-gray-400">
+          $
+        </span>
+        <input
+          className={`${webformInput(!!errors[key])} pl-7`}
+          type="number"
+          min={0}
+          step={500}
+          placeholder={placeholder}
+          value={form[key]}
+          onChange={(e) =>
+            set(key, e.target.value === "" ? "" : Number(e.target.value))
+          }
+        />
+      </div>
+    </Field>
+  );
+
+  const working =
+    form.employmentStatus === "employed" ||
+    form.employmentStatus === "self_employed";
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 sm:text-[28px]">
+        How do you earn?
+      </h1>
+      <p className="mt-1 text-sm text-gray-500">
+        Upstart&apos;s model weighs income, employment, and housing — not just
+        a credit score.
+      </p>
+
+      <Field label="Employment status" error={errors.employmentStatus}>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {EMPLOYMENT_OPTIONS.map((o) => {
+            const active = form.employmentStatus === o.value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => set("employmentStatus", o.value)}
+                className={`rounded border-2 px-3 py-2.5 text-[13px] font-semibold transition-all ${
+                  active
+                    ? "border-ds-blue bg-ds-blue/5 text-ds-blue"
+                    : "border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      {working && (
+        <div className="animate-fade-up">
+          <Field label="Employer" error={errors.employer}>
+            <input
+              className={webformInput(!!errors.employer)}
+              placeholder="Company or organization"
+              value={form.employer}
+              onChange={(e) => set("employer", e.target.value)}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Job title" error={errors.jobTitle}>
+              <input
+                className={webformInput(!!errors.jobTitle)}
+                placeholder="Your role"
+                value={form.jobTitle}
+                onChange={(e) => set("jobTitle", e.target.value)}
+              />
+            </Field>
+            <Field label="Years employed" required={false} error={errors.yearsEmployed}>
+              <input
+                className={webformInput(!!errors.yearsEmployed)}
+                inputMode="numeric"
+                placeholder="3"
+                value={form.yearsEmployed}
+                onChange={(e) => set("yearsEmployed", e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {moneyInput("annualIncome", "Annual income (before taxes)", "65,000", true)}
+      {moneyInput("additionalIncome", "Additional yearly income", "0", false)}
+      {moneyInput("housingPayment", "Monthly rent or mortgage payment", "1,400", false)}
+    </div>
+  );
+}
+
 function Req() {
   return <span className="ml-0.5 text-red-500">*</span>;
 }
@@ -931,25 +1293,6 @@ function StepLoan({
           Preview at a mid-band APR — your personalized rate is set by the
           Upstart model after you apply.
         </p>
-      </Field>
-
-      <Field label="Annual income (before taxes)" error={errors.annualIncome}>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] font-semibold text-gray-400">
-            $
-          </span>
-          <input
-            className={`${webformInput(!!errors.annualIncome)} pl-7`}
-            type="number"
-            min={0}
-            step={1000}
-            placeholder="65,000"
-            value={form.annualIncome}
-            onChange={(e) =>
-              set("annualIncome", e.target.value === "" ? "" : Number(e.target.value))
-            }
-          />
-        </div>
       </Field>
     </div>
   );
@@ -1101,14 +1444,24 @@ function StepVehicle({
 }
 
 function StepReview({ form }: { form: FormState }) {
+  const statusLabel =
+    EMPLOYMENT_OPTIONS.find((o) => o.value === form.employmentStatus)?.label ??
+    form.employmentStatus;
   const rows: [string, string][] = [
     ["Loan type", form.loanType === "auto" ? "Auto (secured)" : "Personal (unsecured)"],
     ["Requested amount", money(form.requestedAmount)],
+    ["Employment", `${statusLabel}${form.employer ? ` · ${form.employer}` : ""}${form.yearsEmployed ? ` · ${form.yearsEmployed}y` : ""}`],
     ["Annual income", money(Number(form.annualIncome) || 0)],
+  ];
+  if (form.additionalIncome !== "" && Number(form.additionalIncome) > 0)
+    rows.push(["Additional income", money(Number(form.additionalIncome))]);
+  if (form.housingPayment !== "" && Number(form.housingPayment) > 0)
+    rows.push(["Housing payment", `${money(Number(form.housingPayment))}/mo`]);
+  rows.push(
     ["Name", `${form.firstName} ${form.lastName}`],
     ["Email", form.email],
     ["Address", `${form.street}, ${form.city}, ${form.state} ${form.zip}`],
-  ];
+  );
   if (form.loanType === "auto") {
     rows.push([
       "Vehicle",

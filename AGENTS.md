@@ -27,7 +27,7 @@
 - `src/app/demo/page.tsx` — guided demo start: Docusign App Center mock (Upstart "Featured partner" tile → ADD)
 - `src/app/demo/workflow/page.tsx` — guided demo: Workflow Builder canvas (add Credit Decision step → zoom out to full flow → launch portal)
 - `src/app/page.tsx` — bank portal (member dashboard, accounts, pre-qualified offer, self-service CTAs)
-- `src/app/apply/page.tsx` + `src/app/apply/wizard.tsx` — DocuSign Web Form–style application (green bank header, % progress bar, section per screen, Back/Next, Powered-by-DocuSign footer) + rate-check overlay
+- `src/app/apply/page.tsx` + `src/app/apply/wizard.tsx` — DocuSign Web Form–style application (green bank header, % progress bar, section per screen: loan → income & employment → contact → vehicle → review, Back/Next, Powered-by-DocuSign footer). Submit → DocuSign IDV phase (jump-to-mobile SMS mock, license scan, selfie liveness, verification report) → Upstart underwriting brain overlay (typewriter model monologue)
 - `src/app/status/[caseId]/page.tsx` — borrower view: Upstart offer → DocuSign Workspaces UI (Tasks/Overview/Documents/Details tabs, welcome banner + progress, stat cards, activity rail, sign tasks + DocuSign Click–style click-to-agree modal). Polls every 2.5s while envelopes await signature
 - `src/app/status/[caseId]/ops/page.tsx` — ops "behind the scenes" dashboard: Workflow Builder canvas (branch chips on the decision), decision internals, Workspaces ops section, agreements table, App Center tiles, Workflow Templates gallery
 - `src/app/sign/[caseId]/[envelopeId]/page.tsx` — eSign ceremony (adopt signature, required-field footer, success interstitial); iPhone user agents get a DocuSign Focused View variant (minimal chrome, single nav button, bottom-sheet adopt)
