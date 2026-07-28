@@ -370,7 +370,7 @@ export default function WorkflowDemoPage() {
               </div>
               <button
                 className="btn bg-up-green px-6 py-2.5 text-sm text-white shadow hover:bg-up-dark"
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/portal")}
               >
                 Launch the bank portal
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">

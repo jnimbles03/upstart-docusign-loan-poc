@@ -474,7 +474,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
               HELP
             </span>
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/portal")}
               className="rounded-full bg-white px-4 py-1.5 text-xs font-bold tracking-wide text-bank-green transition hover:bg-bank-soft"
             >
               EXIT

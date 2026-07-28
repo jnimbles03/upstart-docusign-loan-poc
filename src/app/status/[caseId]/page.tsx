@@ -288,7 +288,7 @@ export default function BorrowerStatusPage({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F4F6F5] animate-fade-in">
         <p className="text-sm font-medium text-red-600">Case not found.</p>
-        <button className="btn-ghost" onClick={() => router.push("/")}>
+        <button className="btn-ghost" onClick={() => router.push("/portal")}>
           Back to portal
         </button>
       </div>
@@ -376,7 +376,7 @@ export default function BorrowerStatusPage({
                   </pre>
                 </details>
               )}
-              <button className="btn-ghost mt-6" onClick={() => router.push("/")}>
+              <button className="btn-ghost mt-6" onClick={() => router.push("/portal")}>
                 Back to portal
               </button>
             </section>
@@ -392,7 +392,7 @@ export default function BorrowerStatusPage({
                 {d.reasons?.[0] ??
                   "Your application needs a quick manual review. We'll follow up by email within one business day."}
               </p>
-              <button className="btn-ghost mt-6" onClick={() => router.push("/")}>
+              <button className="btn-ghost mt-6" onClick={() => router.push("/portal")}>
                 Back to portal
               </button>
             </section>
@@ -531,7 +531,7 @@ export default function BorrowerStatusPage({
         {/* --------------------------------------------- workspace header */}
         <div className="flex flex-wrap items-center gap-3 pt-5">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/portal")}
             className="text-ds-grayText transition-colors hover:text-ds-ink"
             aria-label="Back"
           >

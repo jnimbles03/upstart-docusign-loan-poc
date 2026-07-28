@@ -24,9 +24,10 @@
 - `src/lib/services/docusign.ts` — mock DocuSign doc prep / workspace / envelopes
 - `src/lib/services/orchestrator.ts` — ties the steps together
 - `src/lib/store.ts` — in-memory case store (on globalThis so Next dev route bundles share it) + uid()
+- `src/app/page.tsx` — landing: redirects `/` → `/demo` (guided demo start)
 - `src/app/demo/page.tsx` — guided demo start: Docusign App Center mock (Upstart "Featured partner" tile → ADD)
 - `src/app/demo/workflow/page.tsx` — guided demo: Workflow Builder canvas (add Credit Decision step → zoom out to full flow → launch portal)
-- `src/app/page.tsx` — bank portal (member dashboard, accounts, pre-qualified offer, self-service CTAs)
+- `src/app/portal/page.tsx` — bank portal (member dashboard, accounts, pre-qualified offer, self-service CTAs)
 - `src/app/apply/page.tsx` + `src/app/apply/wizard.tsx` — DocuSign Web Form–style application (green bank header, % progress bar, section per screen: loan → income & employment → contact → vehicle → review, Back/Next, Powered-by-DocuSign footer). Submit → DocuSign IDV phase (jump-to-mobile SMS mock, license scan, selfie liveness, verification report) → Upstart underwriting brain overlay (typewriter model monologue)
 - `src/app/status/[caseId]/page.tsx` — borrower view: Upstart offer → DocuSign Workspaces UI (Tasks/Overview/Documents/Details tabs, welcome banner + progress, stat cards, activity rail, sign tasks + DocuSign Click–style click-to-agree modal). Polls every 2.5s while envelopes await signature
 - `src/app/status/[caseId]/ops/page.tsx` — ops "behind the scenes" dashboard: Workflow Builder canvas (branch chips on the decision), decision internals, Workspaces ops section, agreements table, App Center tiles, Workflow Templates gallery

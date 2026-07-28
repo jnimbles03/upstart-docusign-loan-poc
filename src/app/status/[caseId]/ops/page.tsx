@@ -407,7 +407,7 @@ export default function StatusPage({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ds-bg animate-fade-in">
         <p className="text-sm font-medium text-red-600">Case not found.</p>
-        <button className="btn-ghost" onClick={() => router.push("/")}>
+        <button className="btn-ghost" onClick={() => router.push("/portal")}>
           Back to portal
         </button>
       </div>
@@ -570,7 +570,7 @@ export default function StatusPage({
                 >
                   Borrower view
                 </button>
-                <button className="btn-ghost" onClick={() => router.push("/")}>
+                <button className="btn-ghost" onClick={() => router.push("/portal")}>
                   Back to portal
                 </button>
               </div>
