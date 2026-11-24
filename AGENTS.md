@@ -23,7 +23,9 @@
 - `src/lib/services/upstart.ts` — mock Upstart Credit Decision client
 - `src/lib/services/docusign.ts` — mock DocuSign doc prep / workspace / envelopes
 - `src/lib/services/orchestrator.ts` — ties the steps together
-- `src/lib/store.ts` — in-memory case store (on globalThis so Next dev route bundles share it) + uid()
+- `src/lib/store.ts` — in-memory case store (on globalThis so Next dev route bundles share it; capped at 50 cases, least recently saved evicted) + uid()
+- `src/lib/rateLimit.ts` — bounded in-memory per-address rate limiter (used by `/api/apply`: 10 creates/min per address)
+- `src/lib/http.ts` — `readJsonBody`: streams the request body and stops at a byte cap (413), since App Router applies no body limit
 - `src/app/page.tsx` — landing: redirects `/` → `/demo` (guided demo start)
 - `src/app/demo/page.tsx` — guided demo start: Docusign App Center mock (Upstart "Featured partner" tile → ADD)
 - `src/app/demo/workflow/page.tsx` — guided demo: Workflow Builder canvas (add Credit Decision step → zoom out to full flow → launch portal)
@@ -32,7 +34,7 @@
 - `src/app/status/[caseId]/page.tsx` — borrower view: Upstart offer → DocuSign Workspaces UI (Tasks/Overview/Documents/Details tabs, welcome banner + progress, stat cards, activity rail, sign tasks + DocuSign Click–style click-to-agree modal). Polls every 2.5s while envelopes await signature
 - `src/app/status/[caseId]/ops/page.tsx` — ops "behind the scenes" dashboard: Workflow Builder canvas (branch chips on the decision), decision internals, Workspaces ops section, agreements table, App Center tiles, Workflow Templates gallery
 - `src/app/sign/[caseId]/[envelopeId]/page.tsx` — eSign ceremony (adopt signature, required-field footer, success interstitial); iPhone user agents get a DocuSign Focused View variant (minimal chrome, single nav button, bottom-sheet adopt)
-- `src/app/api/apply/route.ts` — POST submit application
+- `src/app/api/apply/route.ts` — POST submit application (64 KiB body cap, 200-char text fields, numeric range checks, per-address rate limit)
 - `src/app/api/case/[caseId]/route.ts` — GET case; POST sign an envelope
 - `src/app/api/case/[caseId]/accept/route.ts` — POST accept offer
 
