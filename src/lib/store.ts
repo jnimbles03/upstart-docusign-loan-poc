@@ -13,8 +13,19 @@ if (!globalStore.__upstCases) {
 }
 const cases = globalStore.__upstCases;
 
+// Hard cap on retained cases so unauthenticated case creation cannot grow the
+// heap without bound. Map iteration order is insertion order, so re-inserting
+// on save keeps the least recently saved case first in line for eviction.
+export const MAX_RETAINED_CASES = 50;
+
 export function saveCase(c: LoanCase): void {
+  cases.delete(c.caseId);
   cases.set(c.caseId, c);
+  while (cases.size > MAX_RETAINED_CASES) {
+    const oldest = cases.keys().next().value;
+    if (oldest === undefined) break;
+    cases.delete(oldest);
+  }
 }
 
 export function getCase(caseId: string): LoanCase | undefined {
