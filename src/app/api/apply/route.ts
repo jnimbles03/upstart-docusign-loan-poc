@@ -1,6 +1,7 @@
 // POST /api/apply — submit borrower webform, run the Upstart decision step,
 // return the new case (with decision or decline/manual_review outcome).
 
+import { credentialCookie, issueCaseCredential } from "@/lib/auth";
 import { runDecision, newCase } from "@/lib/services/orchestrator";
 import { saveCase } from "@/lib/store";
 import type { BorrowerInput, LoanType } from "@/lib/types";
@@ -71,7 +72,10 @@ export async function POST(req: Request) {
 
   let c = newCase(borrower);
   c = await runDecision(c);
+  const token = issueCaseCredential(c.caseId);
   saveCase(c);
 
-  return NextResponse.json(c, { status: 201 });
+  const res = NextResponse.json(c, { status: 201 });
+  res.headers.append("Set-Cookie", credentialCookie(c.caseId, token));
+  return res;
 }
