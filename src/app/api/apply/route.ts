@@ -1,8 +1,9 @@
 // POST /api/apply — submit borrower webform, run the Upstart decision step,
 // return the new case (with decision or decline/manual_review outcome).
 
+import { newAccessToken, setCaseAccessCookie } from "@/lib/caseAccess";
 import { runDecision, newCase } from "@/lib/services/orchestrator";
-import { saveCase } from "@/lib/store";
+import { insertCase } from "@/lib/store";
 import type { BorrowerInput, LoanType } from "@/lib/types";
 import { NextResponse } from "next/server";
 
@@ -71,7 +72,15 @@ export async function POST(req: Request) {
 
   let c = newCase(borrower);
   c = await runDecision(c);
-  saveCase(c);
+  const { token, hash } = newAccessToken();
+  if (!insertCase(c, hash)) {
+    return NextResponse.json({ error: "Could not create case." }, { status: 500 });
+  }
 
-  return NextResponse.json(c, { status: 201 });
+  const res = NextResponse.json(c, {
+    status: 201,
+    headers: { "cache-control": "no-store" },
+  });
+  setCaseAccessCookie(res, req, c.caseId, token);
+  return res;
 }
