@@ -23,7 +23,8 @@
 - `src/lib/services/upstart.ts` — mock Upstart Credit Decision client
 - `src/lib/services/docusign.ts` — mock DocuSign doc prep / workspace / envelopes
 - `src/lib/services/orchestrator.ts` — ties the steps together
-- `src/lib/store.ts` — in-memory case store (on globalThis so Next dev route bundles share it) + uid()
+- `src/lib/store.ts` — in-memory case store (on globalThis so Next dev route bundles share it) + uid() (CSPRNG)
+- `src/lib/caseAccess.ts` — per-case access token: issued at apply as an HttpOnly `case_access` cookie scoped to `/api/case/<caseId>`; every `/api/case/*` handler calls `authorizeCase` and acts on the case it returns
 - `src/app/page.tsx` — landing: redirects `/` → `/demo` (guided demo start)
 - `src/app/demo/page.tsx` — guided demo start: Docusign App Center mock (Upstart "Featured partner" tile → ADD)
 - `src/app/demo/workflow/page.tsx` — guided demo: Workflow Builder canvas (add Credit Decision step → zoom out to full flow → launch portal)

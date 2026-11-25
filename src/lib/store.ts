@@ -3,32 +3,47 @@
 // NOTE: stored on globalThis because Next.js dev mode compiles each route with its
 // own module graph — a plain module-level Map would not be shared across routes.
 
+import { randomBytes } from "node:crypto";
 import type { LoanCase } from "@/lib/types";
 
+interface StoredCase {
+  loanCase: LoanCase;
+  // SHA-256 of the applicant's access token. Kept outside LoanCase so it is
+  // never serialized into an API response.
+  accessTokenHash: Buffer;
+}
+
 const globalStore = globalThis as typeof globalThis & {
-  __upstCases?: Map<string, LoanCase>;
+  __upstCases?: Map<string, StoredCase>;
 };
 if (!globalStore.__upstCases) {
-  globalStore.__upstCases = new Map<string, LoanCase>();
+  globalStore.__upstCases = new Map<string, StoredCase>();
 }
 const cases = globalStore.__upstCases;
 
-export function saveCase(c: LoanCase): void {
-  cases.set(c.caseId, c);
+export function insertCase(c: LoanCase, accessTokenHash: Buffer): boolean {
+  if (cases.has(c.caseId)) return false;
+  cases.set(c.caseId, { loanCase: c, accessTokenHash });
+  return true;
 }
 
-export function getCase(caseId: string): LoanCase | undefined {
+export function getStoredCase(
+  caseId: string,
+): Readonly<StoredCase> | undefined {
   return cases.get(caseId);
 }
 
-export function listCases(): LoanCase[] {
-  return Array.from(cases.values()).sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  );
+// Compare-and-swap: only replaces the case if it is still the exact object the
+// caller was authorized for, so a concurrent write is never silently clobbered.
+export function replaceCase(expected: LoanCase, updated: LoanCase): boolean {
+  const entry = cases.get(expected.caseId);
+  if (!entry || entry.loanCase !== expected || updated.caseId !== expected.caseId) {
+    return false;
+  }
+  entry.loanCase = updated;
+  return true;
 }
 
 export function uid(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now()
-    .toString(36)
-    .slice(-4)}`;
+  return `${prefix}_${randomBytes(16).toString("base64url")}`;
 }
