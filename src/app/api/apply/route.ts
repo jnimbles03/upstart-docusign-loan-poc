@@ -6,6 +6,27 @@ import { saveCase } from "@/lib/store";
 import type { BorrowerInput, LoanType } from "@/lib/types";
 import { NextResponse } from "next/server";
 
+const DECIMAL = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+// Strict numeric parse: plain decimal numbers or decimal strings only, and the
+// result must be finite. Anything else (NaN, Infinity, "1e309", "0x1", "50,000",
+// objects, arrays) returns null so the caller can reject the request.
+function parseFiniteNumber(value: unknown): number | null {
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string" && DECIMAL.test(value.trim())) {
+    n = Number(value.trim());
+  } else {
+    return null;
+  }
+  return Number.isFinite(n) ? n : null;
+}
+
+function isAbsent(value: unknown): boolean {
+  return value === undefined || value === null || value === "";
+}
+
 export async function POST(req: Request) {
   let body: Partial<BorrowerInput> & Record<string, unknown>;
   try {
@@ -36,6 +57,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "loanType must be 'personal' or 'auto'." }, { status: 400 });
   }
 
+  const annualIncome = parseFiniteNumber(body.annualIncome);
+  if (annualIncome === null || annualIncome < 0) {
+    return NextResponse.json(
+      { error: "annualIncome must be a finite, non-negative number." },
+      { status: 400 },
+    );
+  }
+  const requestedAmount = parseFiniteNumber(body.requestedAmount);
+  if (requestedAmount === null || requestedAmount <= 0) {
+    return NextResponse.json(
+      { error: "requestedAmount must be a finite, positive number." },
+      { status: 400 },
+    );
+  }
+
+  const optionalNumeric = [
+    "yearsEmployed",
+    "additionalIncome",
+    "housingPayment",
+    "vehicleYear",
+    "vehicleMileage",
+  ] as const;
+  const optional: Partial<Record<(typeof optionalNumeric)[number], number>> = {};
+  for (const k of optionalNumeric) {
+    if (isAbsent(body[k])) continue;
+    const n = parseFiniteNumber(body[k]);
+    if (n === null) {
+      return NextResponse.json({ error: `${k} must be a finite number.` }, { status: 400 });
+    }
+    optional[k] = n;
+  }
+
   const borrower: BorrowerInput = {
     firstName: String(body.firstName).trim(),
     lastName: String(body.lastName).trim(),
@@ -44,19 +97,19 @@ export async function POST(req: Request) {
     city: String(body.city).trim(),
     state: String(body.state).trim(),
     zip: String(body.zip).trim(),
-    annualIncome: Number(body.annualIncome),
+    annualIncome,
     loanType: body.loanType as LoanType,
-    requestedAmount: Number(body.requestedAmount),
+    requestedAmount,
     employmentStatus: body.employmentStatus as BorrowerInput["employmentStatus"],
     employer: body.employer ? String(body.employer) : undefined,
     jobTitle: body.jobTitle ? String(body.jobTitle) : undefined,
-    yearsEmployed: body.yearsEmployed ? Number(body.yearsEmployed) : undefined,
-    additionalIncome: body.additionalIncome ? Number(body.additionalIncome) : undefined,
-    housingPayment: body.housingPayment ? Number(body.housingPayment) : undefined,
-    vehicleYear: body.vehicleYear ? Number(body.vehicleYear) : undefined,
+    yearsEmployed: optional.yearsEmployed,
+    additionalIncome: optional.additionalIncome,
+    housingPayment: optional.housingPayment,
+    vehicleYear: optional.vehicleYear,
     vehicleMake: body.vehicleMake ? String(body.vehicleMake) : undefined,
     vehicleModel: body.vehicleModel ? String(body.vehicleModel) : undefined,
-    vehicleMileage: body.vehicleMileage ? Number(body.vehicleMileage) : undefined,
+    vehicleMileage: optional.vehicleMileage,
     vin: body.vin ? String(body.vin).toUpperCase() : undefined,
   };
 

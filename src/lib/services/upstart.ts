@@ -72,8 +72,29 @@ export async function getCreditDecision(
   const decisionedAt = new Date().toISOString();
   const risk = modelRiskScore(borrower);
 
+  // Policy gate 0: inputs must be usable. Every gate below is written so that
+  // a NaN comparison falls to decline rather than through to approval.
+  if (
+    !Number.isFinite(borrower.annualIncome) ||
+    !Number.isFinite(borrower.requestedAmount) ||
+    !Number.isFinite(risk) ||
+    !(borrower.requestedAmount >= LENDER_POLICY.minLoanAmount)
+  ) {
+    const reasons = ["Application data could not be verified against lender policy."];
+    return {
+      applicationId,
+      status: "declined",
+      modelVersion: UPSTART_MODEL_VERSION,
+      policyVersion: LENDER_POLICY_VERSION,
+      decisionedAt,
+      riskScore: Number.isFinite(risk) ? risk : undefined,
+      reasons,
+      adverseActionNotice: buildAdverseActionNotice(borrower, reasons),
+    };
+  }
+
   // Policy gate 1: income floor
-  if (borrower.annualIncome < LENDER_POLICY.minAnnualIncome) {
+  if (!(borrower.annualIncome >= LENDER_POLICY.minAnnualIncome)) {
     return {
       applicationId,
       status: "declined",
@@ -92,7 +113,7 @@ export async function getCreditDecision(
 
   // Policy gate 2: amount/income ratio
   const ratio = borrower.requestedAmount / borrower.annualIncome;
-  if (ratio > LENDER_POLICY.maxAmountToIncomeRatio) {
+  if (!(ratio <= LENDER_POLICY.maxAmountToIncomeRatio)) {
     return {
       applicationId,
       status: "declined",
@@ -125,7 +146,7 @@ export async function getCreditDecision(
   }
 
   // Decline band: too risky
-  if (risk >= 82) {
+  if (!(risk < 82)) {
     return {
       applicationId,
       status: "declined",
