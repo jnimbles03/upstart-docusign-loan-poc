@@ -129,13 +129,35 @@ export async function runDecision(c: LoanCase): Promise<LoanCase> {
   return c;
 }
 
+export type CloseRefusal = "not_approved" | "already_accepted";
+
+// A loan package is built at most once: an offer that was already accepted, or
+// a case that already has a workspace or envelopes, must never be rebuilt.
+export function closeRefusal(c: LoanCase): CloseRefusal | null {
+  if (!c.decision || c.decision.status !== "approved") return "not_approved";
+  if (c.offerAccepted || c.workspace || c.envelopes.length > 0) {
+    return "already_accepted";
+  }
+  return null;
+}
+
+// The state stored while a close is in flight. Because it is already accepted,
+// any concurrent accept of the same case is refused by closeRefusal.
+export function markOfferAccepted(c: LoanCase): LoanCase {
+  let next: LoanCase = {
+    ...c,
+    offerAccepted: true,
+    steps: mark(c.steps, "offer", "complete", "Accepted."),
+  };
+  next = { ...next, steps: mark(next.steps, "docprep", "running") };
+  return next;
+}
+
 // After borrower accepts an approved offer, run docs → workspace → envelopes.
 export async function runClose(c: LoanCase): Promise<LoanCase> {
-  if (!c.decision || c.decision.status !== "approved") return c;
+  if (closeRefusal(c) || !c.decision) return c;
   const decision = c.decision;
-  c = { ...c, offerAccepted: true, steps: mark(c.steps, "offer", "complete", "Accepted.") };
-
-  c = { ...c, steps: mark(c.steps, "docprep", "running") };
+  c = markOfferAccepted(c);
   const docs = await prepareDocuments(c.borrower, decision);
   c = {
     ...c,

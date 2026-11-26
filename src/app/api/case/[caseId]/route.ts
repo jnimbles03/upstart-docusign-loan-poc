@@ -2,7 +2,7 @@
 // POST /api/case/[caseId]/sign?envelopeId=... — simulate eSignature completion.
 
 import { signOneEnvelope } from "@/lib/services/orchestrator";
-import { getCase, saveCase } from "@/lib/store";
+import { getCase, replaceCase } from "@/lib/store";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -25,18 +25,26 @@ export async function POST(
   if (!envelopeId) {
     return NextResponse.json({ error: "envelopeId query param required." }, { status: 400 });
   }
-  // Order enforcement: the click-to-agree disclosure must be accepted first.
   const target = c.envelopes.find((e) => e.envelopeId === envelopeId);
+  if (!target) {
+    return NextResponse.json({ error: "Envelope not found." }, { status: 404 });
+  }
+  // Order enforcement: the click-to-agree disclosure must be accepted first.
   const clickwrapPending = c.envelopes.some(
     (e) => e.method === "clickwrap" && e.status === "sent",
   );
-  if (target && target.method !== "clickwrap" && clickwrapPending) {
+  if (target.method !== "clickwrap" && clickwrapPending) {
     return NextResponse.json(
       { error: "Accept the Electronic Disclosures & E-Consent Agreement first." },
       { status: 409 },
     );
   }
   const updated = await signOneEnvelope(c, envelopeId);
-  saveCase(updated);
+  if (!replaceCase(params.caseId, c, updated)) {
+    return NextResponse.json(
+      { error: "Case changed while signing. Reload and retry." },
+      { status: 409 },
+    );
+  }
   return NextResponse.json(updated);
 }
