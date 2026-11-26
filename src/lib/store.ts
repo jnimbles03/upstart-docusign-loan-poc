@@ -17,6 +17,19 @@ export function saveCase(c: LoanCase): void {
   cases.set(c.caseId, c);
 }
 
+// Compare-and-swap: writes `next` only while the store still holds exactly
+// `expected` for `caseId`. Callers that read a case, await, then write must use
+// this so they never save over a case that changed while they were waiting.
+export function replaceCase(
+  caseId: string,
+  expected: LoanCase,
+  next: LoanCase,
+): boolean {
+  if (next.caseId !== caseId || cases.get(caseId) !== expected) return false;
+  cases.set(caseId, next);
+  return true;
+}
+
 export function getCase(caseId: string): LoanCase | undefined {
   return cases.get(caseId);
 }
