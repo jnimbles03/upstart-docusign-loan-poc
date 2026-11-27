@@ -5,6 +5,8 @@
 // with the lender's API key and credit-policy/return-curve config.
 
 import {
+  isPrincipalWithinPolicy,
+  isValidAnnualIncome,
   LENDER_POLICY,
   LENDER_POLICY_VERSION,
   UPSTART_MODEL_VERSION,
@@ -14,8 +16,8 @@ import { uid } from "@/lib/store";
 
 // Deterministic-ish pseudo "AI risk score" so the POC feels realistic but is
 // bounded. 0 = lowest risk, 100 = highest.
-function modelRiskScore(b: BorrowerInput): number {
-  const incomeRatio = b.requestedAmount / Math.max(b.annualIncome, 1);
+function modelRiskScore(b: BorrowerInput, principal: number): number {
+  const incomeRatio = principal / Math.max(b.annualIncome, 1);
   let risk = 30;
   risk += incomeRatio * 60; // higher ask/income => riskier
   if (b.loanType === "auto") risk -= 6; // secured => lower
@@ -70,7 +72,29 @@ export async function getCreditDecision(
 
   const applicationId = uid("upstart_app");
   const decisionedAt = new Date().toISOString();
-  const risk = modelRiskScore(borrower);
+
+  // Policy gate 0: principal and income must be usable numbers inside policy
+  // before anything is scored or priced.
+  const principal = borrower.requestedAmount;
+  if (
+    !isPrincipalWithinPolicy(principal) ||
+    !isValidAnnualIncome(borrower.annualIncome)
+  ) {
+    const reasons = [
+      `Requested amount must be between $${LENDER_POLICY.minLoanAmount.toLocaleString()} and $${LENDER_POLICY.maxLoanAmount.toLocaleString()} with a valid reported income.`,
+    ];
+    return {
+      applicationId,
+      status: "declined",
+      modelVersion: UPSTART_MODEL_VERSION,
+      policyVersion: LENDER_POLICY_VERSION,
+      decisionedAt,
+      reasons,
+      adverseActionNotice: buildAdverseActionNotice(borrower, reasons),
+    };
+  }
+
+  const risk = modelRiskScore(borrower, principal);
 
   // Policy gate 1: income floor
   if (borrower.annualIncome < LENDER_POLICY.minAnnualIncome) {
@@ -91,7 +115,7 @@ export async function getCreditDecision(
   }
 
   // Policy gate 2: amount/income ratio
-  const ratio = borrower.requestedAmount / borrower.annualIncome;
+  const ratio = principal / borrower.annualIncome;
   if (ratio > LENDER_POLICY.maxAmountToIncomeRatio) {
     return {
       applicationId,
@@ -149,10 +173,7 @@ export async function getCreditDecision(
   // base APR rises with risk, scaled to sit under the cap
   const base = 0.0599;
   const apr = Math.min(cap, base + (risk / 100) * (cap - base) + 0.02);
-  const approvedAmount = Math.min(
-    borrower.requestedAmount,
-    LENDER_POLICY.maxLoanAmount,
-  );
+  const approvedAmount = principal;
   const termMonths =
     approvedAmount > 25000 ? 60 : approvedAmount > 10000 ? 48 : 36;
   const lossRate = +(risk / 1000).toFixed(4); // 0.0xx

@@ -31,5 +31,18 @@ export const LENDER_POLICY: LenderPolicy = {
   maxAmountToIncomeRatio: 0.5,
 };
 
+export function isPrincipalWithinPolicy(amount: unknown): amount is number {
+  return (
+    typeof amount === "number" &&
+    Number.isFinite(amount) &&
+    amount >= LENDER_POLICY.minLoanAmount &&
+    amount <= LENDER_POLICY.maxLoanAmount
+  );
+}
+
+export function isValidAnnualIncome(income: unknown): income is number {
+  return typeof income === "number" && Number.isFinite(income) && income >= 0;
+}
+
 export const UPSTART_MODEL_VERSION = "upstart-cd-v2.4-poc";
 export const LENDER_POLICY_VERSION = "policy-2026-q3-poc";

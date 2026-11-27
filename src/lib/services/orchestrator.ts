@@ -6,6 +6,7 @@
 // Step 4: DocuSign Workspace creation
 // Step 5: Multi-envelope eSign emission to close the loan
 
+import { isPrincipalWithinPolicy } from "@/lib/config/lender";
 import {
   completeEnvelope,
   createEnvelopes,
@@ -133,6 +134,7 @@ export async function runDecision(c: LoanCase): Promise<LoanCase> {
 export async function runClose(c: LoanCase): Promise<LoanCase> {
   if (!c.decision || c.decision.status !== "approved") return c;
   const decision = c.decision;
+  if (!isPrincipalWithinPolicy(decision.approvedAmount)) return c;
   c = { ...c, offerAccepted: true, steps: mark(c.steps, "offer", "complete", "Accepted.") };
 
   c = { ...c, steps: mark(c.steps, "docprep", "running") };
