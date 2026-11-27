@@ -1,6 +1,11 @@
 // POST /api/apply — submit borrower webform, run the Upstart decision step,
 // return the new case (with decision or decline/manual_review outcome).
 
+import {
+  isPrincipalWithinPolicy,
+  isValidAnnualIncome,
+  LENDER_POLICY,
+} from "@/lib/config/lender";
 import { runDecision, newCase } from "@/lib/services/orchestrator";
 import { saveCase } from "@/lib/store";
 import type { BorrowerInput, LoanType } from "@/lib/types";
@@ -59,6 +64,21 @@ export async function POST(req: Request) {
     vehicleMileage: body.vehicleMileage ? Number(body.vehicleMileage) : undefined,
     vin: body.vin ? String(body.vin).toUpperCase() : undefined,
   };
+
+  if (!isPrincipalWithinPolicy(borrower.requestedAmount)) {
+    return NextResponse.json(
+      {
+        error: `requestedAmount must be a number between ${LENDER_POLICY.minLoanAmount} and ${LENDER_POLICY.maxLoanAmount}.`,
+      },
+      { status: 400 },
+    );
+  }
+  if (!isValidAnnualIncome(borrower.annualIncome)) {
+    return NextResponse.json(
+      { error: "annualIncome must be a non-negative number." },
+      { status: 400 },
+    );
+  }
 
   if (borrower.loanType === "auto") {
     if (!borrower.vehicleMake || !borrower.vehicleModel || !borrower.vehicleYear) {

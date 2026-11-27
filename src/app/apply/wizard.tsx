@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isPrincipalWithinPolicy } from "@/lib/config/lender";
 import type { LoanType } from "@/lib/types";
 
 /* ------------------------------------------------------------------ types */
@@ -315,7 +316,7 @@ export default function ApplyWizard({ initialType }: { initialType: LoanType }) 
     const label = steps[s];
 
     if (label === "Loan details") {
-      if (form.requestedAmount < 1000 || form.requestedAmount > 50000)
+      if (!isPrincipalWithinPolicy(form.requestedAmount))
         e.requestedAmount = "Choose an amount between $1,000 and $50,000.";
     }
     if (label === "Income & employment") {
